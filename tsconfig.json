@@ -9,15 +9,15 @@
     "allowJs": true,
     "skipLibCheck": true,
     "strict": false,
-    "moduleResolution": "Node",
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "incremental": true,
     "esModuleInterop": true,
+    "moduleResolution": "Node",
     "module": "esnext",
+    "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
-    "resolveJsonModule": true
+    "jsx": "preserve"
   },
   "include": [
     "next-env.d.ts",
