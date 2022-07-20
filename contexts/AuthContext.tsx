@@ -1,5 +1,5 @@
 import Router from 'next/router';
-import { createContext, ReactNode, useEffect, useState } from 'react';
+import { createContext, MutableRefObject, ReactNode, useEffect, useRef, useState } from 'react';
 import { api } from '../services/apiClient';
 
 import { setCookie, parseCookies, destroyCookie } from 'nookies';
@@ -16,9 +16,11 @@ type SignInCredentials = {
 };
 
 type AuthContextData = {
-  signIn(credentials: SignInCredentials): Promise<void>;
+  signIn: (credentials: SignInCredentials) => Promise<void>;
+  signOut: () => void;
   user: User;
   isAuthenticated: boolean;
+  broadcastAuth: MutableRefObject<BroadcastChannel>;
 };
 
 type AuthProviderProps = {
@@ -28,28 +30,46 @@ type AuthProviderProps = {
 export const AuthContext = createContext({} as AuthContextData);
 
 export function signOut() {
-  destroyCookie(undefined, 'nextauth.token')
-  destroyCookie(undefined, 'nextauth.refreshToken')
+  destroyCookie(undefined, 'nextauth.token');
+  destroyCookie(undefined, 'nextauth.refreshToken');
 
-  Router.push('/')
+  Router.push('/');
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User>();
+  const broadcastAuth = useRef<BroadcastChannel>(null);
   const isAuthenticated = !!user;
+
+  useEffect(() => {
+    broadcastAuth.current = new BroadcastChannel('auth');
+
+    broadcastAuth.current.onmessage = (message) => {
+      switch (message.data) {
+        case 'signOut':
+          signOut();
+          break;
+
+        default:
+          break;
+      }
+    };
+  }, [broadcastAuth]);
 
   useEffect(() => {
     const { 'nextauth.token': token } = parseCookies();
 
     if (token) {
-      api.get('/me').then((response) => {
-        const { email, permissions, roles } = response.data
+      api
+        .get('/me')
+        .then((response) => {
+          const { email, permissions, roles } = response.data;
 
-        setUser({ email, permissions, roles })
-      })
-      .catch(() => {
-        signOut()
-      })
+          setUser({ email, permissions, roles });
+        })
+        .catch(() => {
+          signOut();
+        });
     }
   }, []);
 
@@ -78,7 +98,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         roles,
       });
 
-      api.defaults.headers['Authorization'] = `Bearer ${token}`
+      api.defaults.headers['Authorization'] = `Bearer ${token}`;
 
       Router.push('/dashboard');
     } catch (err) {
@@ -87,7 +107,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   return (
-    <AuthContext.Provider value={{ signIn, isAuthenticated, user }}>
+    <AuthContext.Provider
+      value={{
+        signIn,
+        signOut,
+        isAuthenticated,
+        user,
+        broadcastAuth,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

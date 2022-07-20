@@ -1,3 +1,4 @@
+import { AuthTokenError } from './errors/AuthTokenError';
 import axios, { AxiosError } from 'axios';
 import { parseCookies, setCookie } from 'nookies';
 import { signOut } from '../contexts/AuthContext';
@@ -89,6 +90,8 @@ export function setupAPIClient(ctx = undefined) {
           // deslogar o usuario
           if (process.browser) {
             signOut();
+          } else {
+            return Promise.reject(new AuthTokenError)
           }
         }
       }
